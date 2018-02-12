@@ -1,0 +1,8 @@
+/.classpath
+/.project
+/.settings
+/jlanTestConfig.xml
+/target
+/build
+/build/standalone
+/javadoc
