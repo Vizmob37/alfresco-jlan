@@ -1,9 +1,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<artifactId>alfresco-jlan-embed</artifactId>
-	<name>Alfresco JLan</name>
-	<description>Alfresco JLan</description>
+	<artifactId>mock-jlan</artifactId>
+	<name>Mock JLan</name>
+	<version>1.0.1</version>
 
 	<parent>
 		<groupId>org.alfresco</groupId>
@@ -12,6 +12,13 @@
 	</parent>
 
 	<dependencies>
+		<dependency>
+			<groupId>com.tanukisoftware</groupId>
+			<artifactId>wrapper</artifactId>
+			<version>1.0</version>
+			<scope>system</scope>
+			<systemPath>${basedir}/service/wrapper.jar</systemPath>
+		</dependency>
 		<dependency>
 			<groupId>org.alfresco.surf</groupId>
 			<artifactId>spring-surf-core-configservice</artifactId>
@@ -36,12 +43,10 @@
 						<id>default-compile</id>
 						<configuration>
 							<excludes>
-								<exclude>org/alfresco/jlan/app/**</exclude>
 								<exclude>org/alfresco/jlan/server/filesys/db/*/*</exclude>
 								<exclude>org/alfresco/jlan/server/filesys/db/JdbcDBInterface.java</exclude>
-								<exclude>org/alfresco/jlan/smb/util/**</exclude>
-								<exclude>org/alfresco/jlan/util/db/**</exclude>
-								<exclude>org/alfresco/config/*/**</exclude>
+								<!-- <exclude>org/alfresco/jlan/app/**</exclude> <exclude>org/alfresco/jlan/smb/util/**</exclude> 
+									<exclude>org/alfresco/jlan/util/db/**</exclude> <exclude>org/alfresco/config/*/**</exclude> -->
 							</excludes>
 						</configuration>
 					</execution>

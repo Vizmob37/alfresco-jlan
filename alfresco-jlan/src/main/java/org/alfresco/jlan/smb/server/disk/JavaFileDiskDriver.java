@@ -46,7 +46,6 @@ import org.alfresco.jlan.server.filesys.TreeConnection;
 import org.alfresco.jlan.smb.server.SMBSrvSession;
 import org.springframework.extensions.config.ConfigElement;
 
-
 /**
  * Disk interface implementation that uses the java.io.File class.
  *
@@ -54,1046 +53,1111 @@ import org.springframework.extensions.config.ConfigElement;
  */
 public class JavaFileDiskDriver implements DiskInterface {
 
-  //	DOS file seperator character
+	// DOS file seperator character
 
-  private static final String DOS_SEPERATOR = "\\";
+	private static final String DOS_SEPERATOR = "\\";
 
-	//	SMB date used as the creation date/time for all files
-	
+	// SMB date used as the creation date/time for all files
+
 	protected static long _globalCreateDate = System.currentTimeMillis();
-	
-  /**
-   * Class constructor
-   */
-  public JavaFileDiskDriver() {
-    super();
-  }
 
-  /**
-   * Build the file information for the specified file/directory, if it exists.
-   *
-   * @param path String
-   * @param relPath String
-   * @return FileInfo
-   */
-  protected FileInfo buildFileInformation(String path, String relPath) {
+	/**
+	 * Class constructor
+	 */
+	public JavaFileDiskDriver() {
+		super();
+	}
 
-    //  Now split the path up again !
+	/**
+	 * Build the file information for the specified file/directory, if it
+	 * exists.
+	 *
+	 * @param path
+	 *            String
+	 * @param relPath
+	 *            String
+	 * @return FileInfo
+	 */
+	protected FileInfo buildFileInformation(String path, String relPath) {
 
-    String[] pathStr = FileName.splitPath(path, java.io.File.separatorChar);
+		// Now split the path up again !
 
-    //  Create a Java file to get the file/directory information
+		String[] pathStr = FileName.splitPath(path, java.io.File.separatorChar);
 
-    if (pathStr[1] != null) {
+		// Create a Java file to get the file/directory information
 
-      //  Create a file object
+		if (pathStr[1] != null) {
 
-      File file = new File(pathStr[0], pathStr[1]);
-      if (file.exists() == true && file.isFile()) {
+			// Create a file object
 
-        //  Fill in a file information object for this file/directory
+			File file = new File(pathStr[0], pathStr[1]);
+			if (file.exists() == true && file.isFile()) {
 
-        long flen = file.length();
-        long alloc = (flen + 512L) & 0xFFFFFFFFFFFFFE00L;
-        int fattr = 0;
-        				
-        if (file.isDirectory())
-          fattr = FileAttribute.Directory;
-          
-        if ( file.canWrite() == false)
-        	fattr += FileAttribute.ReadOnly;
+				// Fill in a file information object for this file/directory
 
-        //	Check for common hidden files
-        
-        if ( pathStr[1].equalsIgnoreCase("Desktop.ini") ||
-        		 pathStr[1].equalsIgnoreCase("Thumbs.db") ||
-        		 pathStr[1].charAt(0) == '.')
-        	fattr += FileAttribute.Hidden;
+				long flen = file.length();
+				long alloc = (flen + 512L) & 0xFFFFFFFFFFFFFE00L;
+				int fattr = 0;
 
-				//	Create the file information
-				        	
-        FileInfo finfo = new FileInfo(pathStr[1], flen, fattr);
-        long fdate = file.lastModified();
-        finfo.setModifyDateTime(fdate);
-        finfo.setAllocationSize(alloc);
-        finfo.setFileId(relPath.hashCode());
+				if (file.isDirectory())
+					fattr = FileAttribute.Directory;
+
+				if (file.canWrite() == false)
+					fattr += FileAttribute.ReadOnly;
+
+				// Check for common hidden files
+
+				if (pathStr[1].equalsIgnoreCase("Desktop.ini") || pathStr[1].equalsIgnoreCase("Thumbs.db") || pathStr[1].charAt(0) == '.')
+					fattr += FileAttribute.Hidden;
+
+				// Create the file information
+
+				FileInfo finfo = new FileInfo(pathStr[1], flen, fattr);
+				long fdate = file.lastModified();
+				finfo.setModifyDateTime(fdate);
+				finfo.setAllocationSize(alloc);
+				finfo.setFileId(relPath.hashCode());
 
 				finfo.setCreationDateTime(getGlobalCreateDateTime() > fdate ? fdate : getGlobalCreateDateTime());
 				finfo.setChangeDateTime(fdate);
 
-        return finfo;
-      }
-      else {
+				return finfo;
+			} else {
 
-        //  Rebuild the path, looks like it is a directory
+				// Rebuild the path, looks like it is a directory
 
-        File dir = new File(FileName.buildPath(pathStr[0], pathStr[1], null, java.io.File.separatorChar));
-        if (dir.exists() == true) {
+				File dir = new File(FileName.buildPath(pathStr[0], pathStr[1], null, java.io.File.separatorChar));
+				if (dir.exists() == true) {
 
-          //  Fill in a file information object for this directory
+					// Fill in a file information object for this directory
 
-          int fattr = 0;
-          if (dir.isDirectory())
-            fattr = FileAttribute.Directory;
+					int fattr = 0;
+					if (dir.isDirectory())
+						fattr = FileAttribute.Directory;
 
-          FileInfo finfo = new FileInfo(pathStr[1] != null ? pathStr[1] : "", 0, fattr);
-	        long fdate = file.lastModified();
-        	finfo.setModifyDateTime(fdate);
-        	finfo.setFileId(relPath.hashCode());
+					FileInfo finfo = new FileInfo(pathStr[1] != null ? pathStr[1] : "", 0, fattr);
+					long fdate = file.lastModified();
+					finfo.setModifyDateTime(fdate);
+					finfo.setFileId(relPath.hashCode());
 
-  				finfo.setCreationDateTime(getGlobalCreateDateTime() > fdate ? fdate : getGlobalCreateDateTime());
+					finfo.setCreationDateTime(getGlobalCreateDateTime() > fdate ? fdate : getGlobalCreateDateTime());
 					finfo.setChangeDateTime(fdate);
 
-          return finfo;
-        }
-      }
-    }
-    else {
+					return finfo;
+				}
+			}
+		} else {
 
-      //  Get file information for a directory
+			// Get file information for a directory
 
-      File dir = new File(pathStr[0]);
-      if (dir.exists() == true) {
+			File dir = new File(pathStr[0]);
+			if (dir.exists() == true) {
 
-        //  Fill in a file information object for this directory
+				// Fill in a file information object for this directory
 
-        int fattr = 0;
-        if (dir.isDirectory())
-          fattr = FileAttribute.Directory;
+				int fattr = 0;
+				if (dir.isDirectory())
+					fattr = FileAttribute.Directory;
 
-        FileInfo finfo = new FileInfo(pathStr[1] != null ? pathStr[1] : "", 0, fattr);
-        long fdate = dir.lastModified();
-      	finfo.setModifyDateTime(fdate);
-        finfo.setFileId(relPath.hashCode());
+				FileInfo finfo = new FileInfo(pathStr[1] != null ? pathStr[1] : "", 0, fattr);
+				long fdate = dir.lastModified();
+				finfo.setModifyDateTime(fdate);
+				finfo.setFileId(relPath.hashCode());
 
 				finfo.setCreationDateTime(getGlobalCreateDateTime() > fdate ? fdate : getGlobalCreateDateTime());
 				finfo.setChangeDateTime(fdate);
 
-        return finfo;
-      }
-    }
+				return finfo;
+			}
+		}
 
-    //  Bad path
+		// Bad path
 
-    return null;
-  }
+		return null;
+	}
 
-  /**
-   * Close the specified file
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param file	Network file details
-   * @exception IOException
-   */
-  public void closeFile(SrvSession sess, TreeConnection tree, NetworkFile file)
-  	throws java.io.IOException {
+	/**
+	 * Close the specified file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param file
+	 *            Network file details
+	 * @exception IOException
+	 */
+	public void closeFile(SrvSession sess, TreeConnection tree, NetworkFile file) throws java.io.IOException {
 
-    //	Close the file
-    
-    file.closeFile();
+		// Close the file
 
-    //	Check if the file/directory is marked for delete
-  	
-  	if ( file.hasDeleteOnClose()) {
-  		
-  		//	Check for a file or directory
-  		
-  		if ( file.isDirectory())
-  			deleteDirectory(sess, tree, file.getFullName());
-  		else
-  			deleteFile(sess, tree, file.getFullName());
-  	}
-  }
+		file.closeFile();
 
-  /**
-   * Create a new directory
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param params Directory parameters
-   * @exception IOException
-   */
-  public void createDirectory(SrvSession sess, TreeConnection tree, FileOpenParams params)
-  	throws java.io.IOException {
+		// Check if the file/directory is marked for delete
 
-    //  Get the full path for the new directory
+		if (file.hasDeleteOnClose()) {
 
-    String dirname = FileName.buildPath(tree.getContext().getDeviceName(), params.getPath(), null, java.io.File.separatorChar);
+			// Check for a file or directory
 
-    //  Create the new directory
+			if (file.isDirectory())
+				deleteDirectory(sess, tree, file.getFullName());
+			else
+				deleteFile(sess, tree, file.getFullName());
+		}
+	}
 
-    File newDir = new File(dirname);
-    if ( newDir.mkdir() == false)
-      throw new IOException("Failed to create directory " + dirname);
-  }
+	/**
+	 * Create a new directory
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param params
+	 *            Directory parameters
+	 * @exception IOException
+	 */
+	public void createDirectory(SrvSession sess, TreeConnection tree, FileOpenParams params) throws java.io.IOException {
 
-  /**
-   * Create a new file
-   * 
-   * @param sess		Session details
-   * @param tree		Tree connection
-   * @param params	File open parameters
-   * @return NetworkFile
-   * @exception IOException
-   */
-  public NetworkFile createFile(SrvSession sess, TreeConnection tree, FileOpenParams params)
-    throws java.io.IOException {
+		// Get the full path for the new directory
 
-    //  Get the full path for the new file
+		String dirname = FileName.buildPath(tree.getContext().getDeviceName(), params.getPath(), null, java.io.File.separatorChar);
+
+		// Create the new directory
+
+		File newDir = new File(dirname);
+		if (newDir.mkdir() == false)
+			throw new IOException("Failed to create directory " + dirname);
+	}
+
+	/**
+	 * Create a new file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param params
+	 *            File open parameters
+	 * @return NetworkFile
+	 * @exception IOException
+	 */
+	public NetworkFile createFile(SrvSession sess, TreeConnection tree, FileOpenParams params) throws java.io.IOException {
+
+		// Get the full path for the new file
 
 		DeviceContext ctx = tree.getContext();
-    String fname = FileName.buildPath(ctx.getDeviceName(), params.getPath(), null, java.io.File.separatorChar);
+		String fname = FileName.buildPath(ctx.getDeviceName(), params.getPath(), null, java.io.File.separatorChar);
 
-    //  Check if the file already exists
+		// Check if the file already exists
 
-    File file = new File(fname);
-    if (file.exists())
-      throw new FileExistsException();
+		File file = new File(fname);
+		if (file.exists())
+			throw new FileExistsException();
 
-    //  Create the new file
+		// Create the new file
 
-    FileWriter newFile = new FileWriter(fname, false);
-    newFile.close();
+		FileWriter newFile = new FileWriter(fname, false);
+		newFile.close();
 
-    //  Create a Java network file
+		// Create a Java network file
 
 		file = new File(fname);
-    JavaNetworkFile netFile = new JavaNetworkFile(file, params.getPath());
-    netFile.setGrantedAccess(NetworkFile.READWRITE);
+		JavaNetworkFile netFile = new JavaNetworkFile(file, params.getPath());
+		netFile.setGrantedAccess(NetworkFile.READWRITE);
 		netFile.setFullName(params.getPath());
-    
-    //  Return the network file
 
-    return netFile;
-  }
+		// Return the network file
 
-  /**
-   * Delete a directory
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param dir		Path of directory to delete
-   * @exception IOException
-   */
-  public void deleteDirectory(SrvSession sess, TreeConnection tree, String dir)
-  	throws java.io.IOException {
+		return netFile;
+	}
 
-    //  Get the full path for the directory
+	/**
+	 * Delete a directory
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param dir
+	 *            Path of directory to delete
+	 * @exception IOException
+	 */
+	public void deleteDirectory(SrvSession sess, TreeConnection tree, String dir) throws java.io.IOException {
 
-		DeviceContext ctx = tree.getContext();
-    String dirname = FileName.buildPath(ctx.getDeviceName(), dir, null, java.io.File.separatorChar);
-
-    //  Check if the directory exists, and it is a directory
-
-    File delDir = new File(dirname);
-    if (delDir.exists() && delDir.isDirectory()) {
-        	
-    	//	Check if the directory contains any files
-    	
-    	String[] fileList = delDir.list();
-    	if ( fileList != null && fileList.length > 0)
-    		throw new AccessDeniedException("Directory not empty");
-
-			//	Delete the directory
-			        		
-      delDir.delete();
-  	}
-
-    //  If the path does not exist then try and map it to a real path, there may be case differences
-
-    else if (delDir.exists() == false) {
-
-      //  Map the path to a real path
-
-      String mappedPath = mapPath(ctx.getDeviceName(), dir);
-      if (mappedPath != null) {
-
-        //  Check if the path is a directory
-
-        delDir = new File(mappedPath);
-        if (delDir.isDirectory()) {
-        	
-        	//	Check if the directory contains any files
-        	
-        	String[] fileList = delDir.list();
-        	if ( fileList != null && fileList.length > 0)
-        		throw new AccessDeniedException("Directory not empty");
-        		
-        	//	Delete the directory
-        	
-          delDir.delete();
-        }
-      }
-    }
-  }
-
-  /**
-   * Delete a file
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param name	Name of file to delete
-   * @exception IOException
-   */
-  public void deleteFile(SrvSession sess, TreeConnection tree, String name)
-  	throws java.io.IOException {
-
-    //  Get the full path for the file
+		// Get the full path for the directory
 
 		DeviceContext ctx = tree.getContext();
-    String fullname = FileName.buildPath(ctx.getDeviceName(), name, null, java.io.File.separatorChar);
+		String dirname = FileName.buildPath(ctx.getDeviceName(), dir, null, java.io.File.separatorChar);
 
-    //  Check if the file exists, and it is a file
+		// Check if the directory exists, and it is a directory
 
-    File delFile = new File(fullname);
-    if (delFile.exists() && delFile.isFile())
-      delFile.delete();
+		File delDir = new File(dirname);
+		if (delDir.exists() && delDir.isDirectory()) {
 
-    //  If the path does not exist then try and map it to a real path, there may be case differences
+			// Check if the directory contains any files
 
-    else if (delFile.exists() == false) {
+			String[] fileList = delDir.list();
+			if (fileList != null && fileList.length > 0)
+				throw new AccessDeniedException("Directory not empty");
 
-      //  Map the path to a real path
+			// Delete the directory
 
-      String mappedPath = mapPath(ctx.getDeviceName(), name);
-      if (mappedPath != null) {
+			delDir.delete();
+		}
 
-        //  Check if the path is a file and exists
+		// If the path does not exist then try and map it to a real path, there
+		// may be case differences
 
-        delFile = new File(mappedPath);
-        if (delFile.exists() && delFile.isFile())
-          delFile.delete();
-      }
-    }
-  }
+		else if (delDir.exists() == false) {
 
-  /**
-   * Check if the specified file exists, and it is a file.
-   *
-   * @param sess 	Session details
-   * @param tree	Tree connection
-   * @param name	File name
-   * @return int
-   */
-  public int fileExists(SrvSession sess, TreeConnection tree, String name) {
+			// Map the path to a real path
 
-    //  Get the full path for the file
+			String mappedPath = mapPath(ctx.getDeviceName(), dir);
+			if (mappedPath != null) {
 
-		DeviceContext ctx = tree.getContext();
-    String filename = FileName.buildPath(ctx.getDeviceName(), name, null, java.io.File.separatorChar);
+				// Check if the path is a directory
 
-    //  Check if the file exists, and it is a file
+				delDir = new File(mappedPath);
+				if (delDir.isDirectory()) {
 
-    File chkFile = new File(filename);
-    if (chkFile.exists()) {
-    	
-    	//	Check if the path is a file or directory
-    	
-    	if ( chkFile.isFile())
-      	return FileStatus.FileExists;
-      else
-      	return FileStatus.DirectoryExists;
-    }
+					// Check if the directory contains any files
 
-    //  If the path does not exist then try and map it to a real path, there may be case differences
+					String[] fileList = delDir.list();
+					if (fileList != null && fileList.length > 0)
+						throw new AccessDeniedException("Directory not empty");
 
-    if (chkFile.exists() == false) {
+					// Delete the directory
 
-      //  Map the path to a real path
+					delDir.delete();
+				}
+			}
+		}
+	}
 
-      try {
-        String mappedPath = mapPath(ctx.getDeviceName(), name);
-        if (mappedPath != null) {
+	/**
+	 * Delete a file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param name
+	 *            Name of file to delete
+	 * @exception IOException
+	 */
+	public void deleteFile(SrvSession sess, TreeConnection tree, String name) throws java.io.IOException {
 
-          //  Check if the path is a file
-
-          chkFile = new File(mappedPath);
-          if ( chkFile.exists()) {
-	          if (chkFile.isFile())
-	            return FileStatus.FileExists;
-	           else
-	           	return FileStatus.DirectoryExists;
-          }
-        }
-      }
-      catch (FileNotFoundException ex) {
-      }
-      catch ( PathNotFoundException ex) {
-      }
-    }
-
-    //  Path does not exist or is not a file
-
-    return FileStatus.NotExist;
-  }
-
-  /**
-   * Flush buffered data for the specified file
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param file	Network file
-   * @exception IOException
-   */
-  public void flushFile(SrvSession sess, TreeConnection tree, NetworkFile file)
-  	throws java.io.IOException {
-
-    //	Flush the file
-    
-    file.flushFile();
-  }
-
-  /**
-   * Return file information about the specified file
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param name	File name
-   * @return SMBFileInfo
-   * @exception IOException
-   */
-  public FileInfo getFileInformation(SrvSession sess, TreeConnection tree, String name)
-  	throws java.io.IOException {
-
-    //  Get the full path for the file/directory
+		// Get the full path for the file
 
 		DeviceContext ctx = tree.getContext();
-    String path = FileName.buildPath(ctx.getDeviceName(), name, null, java.io.File.separatorChar);
+		String fullname = FileName.buildPath(ctx.getDeviceName(), name, null, java.io.File.separatorChar);
+
+		// Check if the file exists, and it is a file
+
+		File delFile = new File(fullname);
+		if (delFile.exists() && delFile.isFile())
+			delFile.delete();
 
-    //  Build the file information for the file/directory
+		// If the path does not exist then try and map it to a real path, there
+		// may be case differences
+
+		else if (delFile.exists() == false) {
+
+			// Map the path to a real path
+
+			String mappedPath = mapPath(ctx.getDeviceName(), name);
+			if (mappedPath != null) {
+
+				// Check if the path is a file and exists
+
+				delFile = new File(mappedPath);
+				if (delFile.exists() && delFile.isFile())
+					delFile.delete();
+			}
+		}
+	}
+
+	/**
+	 * Check if the specified file exists, and it is a file.
+	 *
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param name
+	 *            File name
+	 * @return int
+	 */
+	public int fileExists(SrvSession sess, TreeConnection tree, String name) {
 
-    FileInfo info = buildFileInformation(path, name);
-    
-    if (info != null)
-      return info;
+		// Get the full path for the file
 
-    //  Try and map the path to a real path
+		DeviceContext ctx = tree.getContext();
+		String filename = FileName.buildPath(ctx.getDeviceName(), name, null, java.io.File.separatorChar);
 
-    String mappedPath = mapPath(ctx.getDeviceName(), name);
-    if (mappedPath != null)
-      return buildFileInformation(mappedPath, name);
+		// Check if the file exists, and it is a file
 
-    //  Looks like a bad path
+		File chkFile = new File(filename);
+		if (chkFile.exists()) {
+
+			// Check if the path is a file or directory
+
+			if (chkFile.isFile())
+				return FileStatus.FileExists;
+			else
+				return FileStatus.DirectoryExists;
+		}
+
+		// If the path does not exist then try and map it to a real path, there
+		// may be case differences
+
+		if (chkFile.exists() == false) {
+
+			// Map the path to a real path
+
+			try {
+				String mappedPath = mapPath(ctx.getDeviceName(), name);
+				if (mappedPath != null) {
+
+					// Check if the path is a file
+
+					chkFile = new File(mappedPath);
+					if (chkFile.exists()) {
+						if (chkFile.isFile())
+							return FileStatus.FileExists;
+						else
+							return FileStatus.DirectoryExists;
+					}
+				}
+			} catch (FileNotFoundException ex) {
+			} catch (PathNotFoundException ex) {
+			}
+		}
 
-    return null;
-  }
+		// Path does not exist or is not a file
 
-  /**
-   * Determine if the disk device is read-only.
-   *
-   * @param sess	Session details
-   * @param ctx		Device context
-   * @return true if the device is read-only, else false
-   * @exception IOException  If an error occurs.
-   */
-  public boolean isReadOnly(SrvSession sess, DeviceContext ctx)
-  	throws java.io.IOException {
+		return FileStatus.NotExist;
+	}
 
-    //  Check if the directory exists, and it is a directory
+	/**
+	 * Flush buffered data for the specified file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param file
+	 *            Network file
+	 * @exception IOException
+	 */
+	public void flushFile(SrvSession sess, TreeConnection tree, NetworkFile file) throws java.io.IOException {
 
-    File rootDir = new File(ctx.getDeviceName());
-    if (rootDir.exists() == false || rootDir.isDirectory() == false)
-      throw new FileNotFoundException(ctx.getDeviceName());
+		// Flush the file
 
-    //  Create a temporary file in the root directory, this will test if we have write access
-    //  to the shared directory.
+		file.flushFile();
+	}
 
-    boolean readOnly = true;
+	/**
+	 * Return file information about the specified file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param name
+	 *            File name
+	 * @return SMBFileInfo
+	 * @exception IOException
+	 */
+	public FileInfo getFileInformation(SrvSession sess, TreeConnection tree, String name) throws java.io.IOException {
 
-    try {
+		// Get the full path for the file/directory
 
-      //  Create a temporary file
+		DeviceContext ctx = tree.getContext();
+		String path = FileName.buildPath(ctx.getDeviceName(), name, null, java.io.File.separatorChar);
 
-      File tempFile = null;
-      boolean fileOK = false;
+		// Build the file information for the file/directory
 
-      while (fileOK == false) {
+		FileInfo info = buildFileInformation(path, name);
 
-        //  Create a temporary file name
+		if (info != null)
+			return info;
 
-        tempFile = new File(rootDir, "_JSRV" + (System.currentTimeMillis() & 0x0FFF) + ".TMP");
-        if (tempFile.exists() == false)
-          fileOK = true;
-      }
+		// Try and map the path to a real path
+
+		String mappedPath = mapPath(ctx.getDeviceName(), name);
+		if (mappedPath != null)
+			return buildFileInformation(mappedPath, name);
 
-      //  Create a temporary file
+		// Looks like a bad path
 
-      FileWriter outFile = new FileWriter(tempFile);
-      outFile.close();
+		return null;
+	}
 
-      //  Delete the temporary file
+	/**
+	 * Determine if the disk device is read-only.
+	 *
+	 * @param sess
+	 *            Session details
+	 * @param ctx
+	 *            Device context
+	 * @return true if the device is read-only, else false
+	 * @exception IOException
+	 *                If an error occurs.
+	 */
+	public boolean isReadOnly(SrvSession sess, DeviceContext ctx) throws java.io.IOException {
 
-      tempFile.delete();
+		// Check if the directory exists, and it is a directory
 
-      //  Shared directory appears to be writeable by the JVM
+		File rootDir = new File(ctx.getDeviceName());
+		if (rootDir.exists() == false || rootDir.isDirectory() == false)
+			throw new FileNotFoundException(ctx.getDeviceName());
 
-      readOnly = false;
-    }
-    catch (IllegalArgumentException ex) {
-    }
-    catch (IOException ex) {
-    }
+		// Create a temporary file in the root directory, this will test if we
+		// have write access
+		// to the shared directory.
 
-    //  Return the shared directory read-onyl status
+		boolean readOnly = true;
 
-    return readOnly;
-  }
+		try {
 
-  /**
-   * Map the input path to a real path, this may require changing the case of various parts of the
-   * path.
-   *
-   * @param path 	Share relative path
-   * @return Real path on the local filesystem
-   */
-  protected final String mapPath(String path)
-  	throws java.io.FileNotFoundException, PathNotFoundException {
-    return mapPath("", path);
-  }
+			// Create a temporary file
 
-  /**
-   * Map the input path to a real path, this may require changing the case of various parts of the
-   * path. The base path is not checked, it is assumed to exist.
-   *
-   * @param base java.lang.String
-   * @param path java.lang.String
-   * @return java.lang.String
-   * @exception java.io.FileNotFoundException The path could not be mapped to a real path.
-   * @exception PathNotFoundException		Part of the path is not valid
-   */
-  protected final String mapPath(String base, String path)
-  	throws java.io.FileNotFoundException, PathNotFoundException {
+			File tempFile = null;
+			boolean fileOK = false;
 
-    //  Split the path string into seperate directory components
+			while (fileOK == false) {
 
-    String pathCopy = path;
-    if (pathCopy.length() > 0 && pathCopy.startsWith(DOS_SEPERATOR))
-      pathCopy = pathCopy.substring(1);
+				// Create a temporary file name
 
-    StringTokenizer token = new StringTokenizer(pathCopy, "\\/");
-    int tokCnt = token.countTokens();
+				tempFile = new File(rootDir, "_JSRV" + (System.currentTimeMillis() & 0x0FFF) + ".TMP");
+				if (tempFile.exists() == false)
+					fileOK = true;
+			}
 
-    //  The mapped path string, if it can be mapped
+			// Create a temporary file
 
-    String mappedPath = null;
+			FileWriter outFile = new FileWriter(tempFile);
+			outFile.close();
 
-    if (tokCnt > 0) {
+			// Delete the temporary file
 
-      //  Allocate an array to hold the directory names
+			tempFile.delete();
 
-      String[] dirs = new String[token.countTokens()];
+			// Shared directory appears to be writeable by the JVM
 
-      //  Get the directory names
+			readOnly = false;
+		} catch (IllegalArgumentException ex) {
+		} catch (IOException ex) {
+		}
 
-      int idx = 0;
-      while (token.hasMoreTokens())
-        dirs[idx++] = token.nextToken();
+		// Return the shared directory read-onyl status
 
-      //  Check if the path ends with a directory or file name, ie. has a trailing '\' or not
+		return readOnly;
+	}
 
-      int maxDir = dirs.length;
+	/**
+	 * Map the input path to a real path, this may require changing the case of
+	 * various parts of the path.
+	 *
+	 * @param path
+	 *            Share relative path
+	 * @return Real path on the local filesystem
+	 */
+	protected final String mapPath(String path) throws java.io.FileNotFoundException, PathNotFoundException {
+		return mapPath("", path);
+	}
 
-      if (path.endsWith(DOS_SEPERATOR) == false) {
+	/**
+	 * Map the input path to a real path, this may require changing the case of
+	 * various parts of the path. The base path is not checked, it is assumed to
+	 * exist.
+	 *
+	 * @param base
+	 *            java.lang.String
+	 * @param path
+	 *            java.lang.String
+	 * @return java.lang.String
+	 * @exception java.io.FileNotFoundException
+	 *                The path could not be mapped to a real path.
+	 * @exception PathNotFoundException
+	 *                Part of the path is not valid
+	 */
+	protected final String mapPath(String base, String path) throws java.io.FileNotFoundException, PathNotFoundException {
 
-        //  Ignore the last token as it is a file name
+		// Split the path string into seperate directory components
 
-        maxDir--;
-      }
+		String pathCopy = path;
+		if (pathCopy.length() > 0 && pathCopy.startsWith(DOS_SEPERATOR))
+			pathCopy = pathCopy.substring(1);
 
-      //  Build up the path string and validate that the path exists at each stage.
+		StringTokenizer token = new StringTokenizer(pathCopy, "\\/");
+		int tokCnt = token.countTokens();
 
-      StringBuffer pathStr = new StringBuffer(base);
-      if (base.endsWith(java.io.File.separator) == false)
-        pathStr.append(java.io.File.separator);
+		// The mapped path string, if it can be mapped
 
-      int lastPos = pathStr.length();
-      idx = 0;
-      File lastDir = null;
-      if (base != null && base.length() > 0)
-        lastDir = new File(base);
-      File curDir = null;
+		String mappedPath = null;
 
-      while (idx < maxDir) {
+		if (tokCnt > 0) {
 
-        //  Append the current directory to the path
+			// Allocate an array to hold the directory names
 
-        pathStr.append(dirs[idx]);
-        pathStr.append(java.io.File.separator);
+			String[] dirs = new String[token.countTokens()];
 
-        //  Check if the current path exists
+			// Get the directory names
 
-        curDir = new File(pathStr.toString());
+			int idx = 0;
+			while (token.hasMoreTokens())
+				dirs[idx++] = token.nextToken();
 
-        if (curDir.exists() == false) {
+			// Check if the path ends with a directory or file name, ie. has a
+			// trailing '\' or not
 
-          //  Check if there is a previous directory to search
+			int maxDir = dirs.length;
 
-          if (lastDir == null)
-            throw new PathNotFoundException();
+			if (path.endsWith(DOS_SEPERATOR) == false) {
 
-          //  Search the current path for a matching directory, the case may be different
+				// Ignore the last token as it is a file name
 
-          String[] fileList = lastDir.list();
-          if (fileList == null || fileList.length == 0)
-            throw new PathNotFoundException();
+				maxDir--;
+			}
 
-          int fidx = 0;
-          boolean foundPath = false;
+			// Build up the path string and validate that the path exists at
+			// each stage.
 
-          while (fidx < fileList.length && foundPath == false) {
+			StringBuffer pathStr = new StringBuffer(base);
+			if (base.endsWith(java.io.File.separator) == false)
+				pathStr.append(java.io.File.separator);
 
-            //  Check if the current file name matches the required directory name
+			int lastPos = pathStr.length();
+			idx = 0;
+			File lastDir = null;
+			if (base != null && base.length() > 0)
+				lastDir = new File(base);
+			File curDir = null;
 
-            if (fileList[fidx].equalsIgnoreCase(dirs[idx])) {
+			while (idx < maxDir) {
 
-              //  Use the current directory name
+				// Append the current directory to the path
 
-              pathStr.setLength(lastPos);
-              pathStr.append(fileList[fidx]);
-              pathStr.append(java.io.File.separator);
+				pathStr.append(dirs[idx]);
+				pathStr.append(java.io.File.separator);
 
-              //  Check if the path is valid
+				// Check if the current path exists
 
-              curDir = new File(pathStr.toString());
-              if (curDir.exists()) {
-                foundPath = true;
-                break;
-              }
-            }
+				curDir = new File(pathStr.toString());
 
-            //  Update the file name index
+				if (curDir.exists() == false) {
 
-            fidx++;
-          }
+					// Check if there is a previous directory to search
 
-          //  Check if we found the required directory
+					if (lastDir == null)
+						throw new PathNotFoundException();
 
-          if (foundPath == false)
-            throw new PathNotFoundException();
-        }
+					// Search the current path for a matching directory, the
+					// case may be different
 
-        //  Set the last valid directory file
+					String[] fileList = lastDir.list();
+					if (fileList == null || fileList.length == 0)
+						throw new PathNotFoundException();
 
-        lastDir = curDir;
+					int fidx = 0;
+					boolean foundPath = false;
 
-        //  Update the end of valid path location
+					while (fidx < fileList.length && foundPath == false) {
 
-        lastPos = pathStr.length();
+						// Check if the current file name matches the required
+						// directory name
 
-        //  Update the current directory index
+						if (fileList[fidx].equalsIgnoreCase(dirs[idx])) {
 
-        idx++;
-      }
+							// Use the current directory name
 
-      //  Check if there is a file name to be added to the mapped path
+							pathStr.setLength(lastPos);
+							pathStr.append(fileList[fidx]);
+							pathStr.append(java.io.File.separator);
 
-      if (path.endsWith(DOS_SEPERATOR) == false) {
+							// Check if the path is valid
 
-        //  Map the file name
+							curDir = new File(pathStr.toString());
+							if (curDir.exists()) {
+								foundPath = true;
+								break;
+							}
+						}
 
-        String[] fileList = lastDir.list();
-        String fileName = dirs[dirs.length - 1];
+						// Update the file name index
 
-        //	Check if the file list is valid, if not then the path is not valid
+						fidx++;
+					}
 
-        if (fileList == null)
-          throw new FileNotFoundException(path);
+					// Check if we found the required directory
 
-        //	Search for the required file
+					if (foundPath == false)
+						throw new PathNotFoundException();
+				}
 
-        idx = 0;
-        boolean foundFile = false;
+				// Set the last valid directory file
 
-        while (idx < fileList.length && foundFile == false) {
-          if (fileList[idx].compareTo(fileName) == 0)
-            foundFile = true;
-          else
-            idx++;
-        }
+				lastDir = curDir;
 
-        //  Check if we found the file name, if not then do a case insensitive search
+				// Update the end of valid path location
 
-        if (foundFile == false) {
+				lastPos = pathStr.length();
 
-          //  Search again using a case insensitive search
+				// Update the current directory index
 
-          idx = 0;
+				idx++;
+			}
 
-          while (idx < fileList.length && foundFile == false) {
-            if (fileList[idx].equalsIgnoreCase(fileName)) {
-              foundFile = true;
-              fileName = fileList[idx];
-            }
-            else
-              idx++;
-          }
-        }
+			// Check if there is a file name to be added to the mapped path
 
-        //  Append the file name
+			if (path.endsWith(DOS_SEPERATOR) == false) {
 
-        pathStr.append(fileName);
-      }
+				// Map the file name
 
-      //  Set the new path string
+				String[] fileList = lastDir.list();
+				String fileName = dirs[dirs.length - 1];
 
-      mappedPath = pathStr.toString();
-      
-      // Check for a Netware style path and remove the leading slash
-      
-      if (File.separator.equals(DOS_SEPERATOR) && mappedPath.startsWith(DOS_SEPERATOR) && mappedPath.indexOf(':') > 1)
-        mappedPath = mappedPath.substring(1);
-    }
+				// Check if the file list is valid, if not then the path is not
+				// valid
 
-    //  Return the mapped path string, if successful.
+				if (fileList == null)
+					throw new FileNotFoundException(path);
 
-    return mappedPath;
-  }
+				// Search for the required file
 
-  /**
-   * Open a file
-   * 
-   * @param sess		Session details
-   * @param tree		Tree connection
-   * @param params	File open parameters
-   * @return NetworkFile
-   * @exception IOException
-   */
-  public NetworkFile openFile(SrvSession sess, TreeConnection tree, FileOpenParams params)
-    throws java.io.IOException {
+				idx = 0;
+				boolean foundFile = false;
 
-    //  Create a Java network file
+				while (idx < fileList.length && foundFile == false) {
+					if (fileList[idx].compareTo(fileName) == 0)
+						foundFile = true;
+					else
+						idx++;
+				}
 
-    DeviceContext ctx = tree.getContext();
-    String fname = FileName.buildPath(ctx.getDeviceName(), params.getPath(), null, java.io.File.separatorChar);
-    File file = new File(fname);
-    if (file.exists() == false) {
+				// Check if we found the file name, if not then do a case
+				// insensitive search
 
-      //  Try and map the file name string to a local path
+				if (foundFile == false) {
 
-      String mappedPath = mapPath(ctx.getDeviceName(), params.getPath());
-      if (mappedPath == null)
-        throw new java.io.FileNotFoundException(fname);
+					// Search again using a case insensitive search
 
-      //  Create the file object for the mapped file and check if the file exists
+					idx = 0;
 
-      file = new File(mappedPath);
-      if (file.exists() == false)
-        throw new FileNotFoundException(fname);
-    }
+					while (idx < fileList.length && foundFile == false) {
+						if (fileList[idx].equalsIgnoreCase(fileName)) {
+							foundFile = true;
+							fileName = fileList[idx];
+						} else
+							idx++;
+					}
+				}
 
-    //	Check if the file is read-only and write access has been requested
-    
-    if ( file.canWrite() == false && ( params.isReadWriteAccess() || params.isWriteOnlyAccess()))
-      throw new AccessDeniedException("File " + fname + " is read-only");
-    
-    //	Create the network file object for the opened file/folder
-    
-    NetworkFile netFile = new JavaNetworkFile(file, params.getPath());
-    
-    if ( params.isReadOnlyAccess())
-    	netFile.setGrantedAccess(NetworkFile.READONLY);
+				// Append the file name
+
+				pathStr.append(fileName);
+			}
+
+			// Set the new path string
+
+			mappedPath = pathStr.toString();
+
+			// Check for a Netware style path and remove the leading slash
+
+			if (File.separator.equals(DOS_SEPERATOR) && mappedPath.startsWith(DOS_SEPERATOR) && mappedPath.indexOf(':') > 1)
+				mappedPath = mappedPath.substring(1);
+		}
+
+		// Return the mapped path string, if successful.
+
+		return mappedPath;
+	}
+
+	/**
+	 * Open a file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param params
+	 *            File open parameters
+	 * @return NetworkFile
+	 * @exception IOException
+	 */
+	public NetworkFile openFile(SrvSession sess, TreeConnection tree, FileOpenParams params) throws java.io.IOException {
+
+		// Create a Java network file
+
+		DeviceContext ctx = tree.getContext();
+		String fname = FileName.buildPath(ctx.getDeviceName(), params.getPath(), null, java.io.File.separatorChar);
+		File file = new File(fname);
+		if (file.exists() == false) {
+
+			// Try and map the file name string to a local path
+
+			String mappedPath = mapPath(ctx.getDeviceName(), params.getPath());
+			if (mappedPath == null)
+				throw new java.io.FileNotFoundException(fname);
+
+			// Create the file object for the mapped file and check if the file
+			// exists
+
+			file = new File(mappedPath);
+			if (file.exists() == false)
+				throw new FileNotFoundException(fname);
+		}
+
+		// Check if the file is read-only and write access has been requested
+
+		if (file.canWrite() == false && (params.isReadWriteAccess() || params.isWriteOnlyAccess()))
+			throw new AccessDeniedException("File " + fname + " is read-only");
+
+		// Create the network file object for the opened file/folder
+
+		NetworkFile netFile = new JavaNetworkFile(file, params.getPath());
+
+		if (params.isReadOnlyAccess())
+			netFile.setGrantedAccess(NetworkFile.READONLY);
 		else
-    	netFile.setGrantedAccess(NetworkFile.READWRITE);
-    	
-    netFile.setFullName(params.getPath());
-    
-    //  Check if the file is actually a directory
-    
-    if ( file.isDirectory() || file.list() != null)
-    	netFile.setAttributes(FileAttribute.Directory);
+			netFile.setGrantedAccess(NetworkFile.READWRITE);
 
-    //  Return the network file
+		netFile.setFullName(params.getPath());
 
-    return netFile;
-  }
+		// Check if the file is actually a directory
 
-  /**
-   * Read a block of data from a file
-   * 
-   * @param sess		Session details
-   * @param tree		Tree connection
-   * @param file		Network file
-   * @param buf			Buffer to return data to
-   * @param bufPos 	Starting position in the return buffer
-   * @param siz			Maximum size of data to return
-   * @param filePos	File offset to read data
-   * @return Number of bytes read
-   * @exception IOException
-   */
-  public int readFile(SrvSession sess, TreeConnection tree, NetworkFile file, byte[] buf, int bufPos, int siz, long filePos)
-    throws java.io.IOException {
+		if (file.isDirectory() || file.list() != null)
+			netFile.setAttributes(FileAttribute.Directory);
 
-	  //	Check if the file is a directory
-	
-		if ( file.isDirectory())
+		// Return the network file
+
+		return netFile;
+	}
+
+	/**
+	 * Read a block of data from a file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param file
+	 *            Network file
+	 * @param buf
+	 *            Buffer to return data to
+	 * @param bufPos
+	 *            Starting position in the return buffer
+	 * @param siz
+	 *            Maximum size of data to return
+	 * @param filePos
+	 *            File offset to read data
+	 * @return Number of bytes read
+	 * @exception IOException
+	 */
+	public int readFile(SrvSession sess, TreeConnection tree, NetworkFile file, byte[] buf, int bufPos, int siz, long filePos) throws java.io.IOException {
+
+		// Check if the file is a directory
+
+		if (file.isDirectory())
 			throw new AccessDeniedException();
-      
-    //  Read the file
 
-    int rdlen = file.readFile(buf, siz, bufPos, filePos);
+		// Read the file
 
-    //  If we have reached end of file return a zero length read
+		int rdlen = file.readFile(buf, siz, bufPos, filePos);
 
-    if (rdlen == -1)
-      rdlen = 0;
+		// If we have reached end of file return a zero length read
 
-    //  Return the actual read length
+		if (rdlen == -1)
+			rdlen = 0;
 
-    return rdlen;
-  }
+		// Return the actual read length
 
-  /**
-   * Rename a file
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param oldName	Existing file name
-   * @param newName	New file name
-   * @exception IOException
-   */
-  public void renameFile(SrvSession sess, TreeConnection tree, String oldName, String newName)
-    throws java.io.IOException {
+		return rdlen;
+	}
 
-    //  Get the full path for the existing file and the new file name
+	/**
+	 * Rename a file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param oldName
+	 *            Existing file name
+	 * @param newName
+	 *            New file name
+	 * @exception IOException
+	 */
+	public void renameFile(SrvSession sess, TreeConnection tree, String oldName, String newName) throws java.io.IOException {
+
+		// Get the full path for the existing file and the new file name
 
 		DeviceContext ctx = tree.getContext();
-    String oldPath = FileName.buildPath(ctx.getDeviceName(), oldName, null, java.io.File.separatorChar);
-    String newPath = FileName.buildPath(ctx.getDeviceName(), newName, null, java.io.File.separatorChar);
+		String oldPath = FileName.buildPath(ctx.getDeviceName(), oldName, null, java.io.File.separatorChar);
+		String newPath = FileName.buildPath(ctx.getDeviceName(), newName, null, java.io.File.separatorChar);
 
-		//	Check if the current file/directory exists
-		
-		if ( fileExists(sess, tree, oldName) == FileStatus.NotExist)
+		// Check if the current file/directory exists
+
+		if (fileExists(sess, tree, oldName) == FileStatus.NotExist)
 			throw new FileNotFoundException("Rename file, does not exist " + oldName);
-			
-		//	Check if the new file/directory exists
-		
-		if ( fileExists(sess, tree, newName) != FileStatus.NotExist)
+
+		// Check if the new file/directory exists
+
+		if (fileExists(sess, tree, newName) != FileStatus.NotExist)
 			throw new FileExistsException("Rename file, path exists " + newName);
-			
-    //  Rename the file
 
-    File oldFile = new File(oldPath);
-    File newFile = new File(newPath);
-    
-    if ( oldFile.renameTo(newFile) == false)
-    	throw new IOException ("Rename " + oldPath + " to " + newPath + " failed");
-  }
+		// Rename the file
 
-  /**
-   * Seek to the specified point within a file
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param file	Network file
-   * @param pos		New file position
-   * @param typ		Seek type
-   * @return  New file position
-   * @exception IOException
-   */
-  public long seekFile(SrvSession sess, TreeConnection tree, NetworkFile file, long pos, int typ)
-    throws java.io.IOException {
+		File oldFile = new File(oldPath);
+		File newFile = new File(newPath);
 
-    //  Check that the network file is our type
+		if (oldFile.renameTo(newFile) == false)
+			throw new IOException("Rename " + oldPath + " to " + newPath + " failed");
+	}
 
-    return file.seekFile(pos, typ);
-  }
+	/**
+	 * Seek to the specified point within a file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param file
+	 *            Network file
+	 * @param pos
+	 *            New file position
+	 * @param typ
+	 *            Seek type
+	 * @return New file position
+	 * @exception IOException
+	 */
+	public long seekFile(SrvSession sess, TreeConnection tree, NetworkFile file, long pos, int typ) throws java.io.IOException {
 
-  /**
-   * Set file information
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param name	File name
-   * @param info	File information to be set
-   * @exception IOException
-   */
-  public void setFileInformation(SrvSession sess, TreeConnection tree, String name, FileInfo info)
-    throws java.io.IOException {
-    
-    //	Check if the modify date/time should be updated
-    
-    if ( info.hasSetFlag( FileInfo.SetModifyDate)) {
+		// Check that the network file is our type
 
-      //	Build the path to the file
-      
+		return file.seekFile(pos, typ);
+	}
+
+	/**
+	 * Set file information
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param name
+	 *            File name
+	 * @param info
+	 *            File information to be set
+	 * @exception IOException
+	 */
+	public void setFileInformation(SrvSession sess, TreeConnection tree, String name, FileInfo info) throws java.io.IOException {
+
+		// Check if the modify date/time should be updated
+
+		if (info.hasSetFlag(FileInfo.SetModifyDate)) {
+
+			// Build the path to the file
+
 			DeviceContext ctx = tree.getContext();
-	    String fname = FileName.buildPath( ctx.getDeviceName(), name, null, java.io.File.separatorChar);
+			String fname = FileName.buildPath(ctx.getDeviceName(), name, null, java.io.File.separatorChar);
 
-	    //	Update the file/folder modify date/time
-	    
-	    File file = new File(fname);
-	    file.setLastModified( info.getModifyDateTime());
-    }
-  }
+			// Update the file/folder modify date/time
 
-  /**
-   * Start a file search
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param searchPath	Search path, may include wildcards
-   * @param attrib Search attributes
-   * @return SearchContext
-   * @exception FileNotFoundException
-   */
-  public SearchContext startSearch(SrvSession sess, TreeConnection tree, String searchPath, int attrib)
-    throws java.io.FileNotFoundException {
+			File file = new File(fname);
+			file.setLastModified(info.getModifyDateTime());
+		}
+	}
 
-    //  Create a context for the new search
+	/**
+	 * Start a file search
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param searchPath
+	 *            Search path, may include wildcards
+	 * @param attrib
+	 *            Search attributes
+	 * @return SearchContext
+	 * @exception FileNotFoundException
+	 */
+	public SearchContext startSearch(SrvSession sess, TreeConnection tree, String searchPath, int attrib) throws java.io.FileNotFoundException {
 
-    JavaFileSearchContext srch = new JavaFileSearchContext();
+		// Create a context for the new search
 
-    //  Create the full search path string
+		JavaFileSearchContext srch = new JavaFileSearchContext();
 
-    String path = FileName.buildPath(tree.getContext().getDeviceName(), null, searchPath, java.io.File.separatorChar);
+		// Create the full search path string
 
-    try {
-      
-			//	Map the path, this may require changing the case on some or all path components
-			
+		String path = FileName.buildPath(tree.getContext().getDeviceName(), null, searchPath, java.io.File.separatorChar);
+
+		try {
+
+			// Map the path, this may require changing the case on some or all
+			// path components
+
 			path = mapPath(path);
-			
-      // Split the search path to get the share relative path
-      
-      String[] paths = FileName.splitPath( searchPath);
-      
-			//	DEBUG
-			
-			if ( Debug.EnableInfo && sess != null && sess.hasDebug(SMBSrvSession.DBG_SEARCH))
+
+			// Split the search path to get the share relative path
+
+			String[] paths = FileName.splitPath(searchPath);
+
+			// DEBUG
+
+			if (Debug.EnableInfo && sess != null && sess.hasDebug(SMBSrvSession.DBG_SEARCH))
 				sess.debugPrintln("  Start search path=" + path + ", relPath=" + paths[0]);
-				
-	    //  Initialize the search
-	
-	    srch.initSearch(path, attrib);
-      srch.setRelativePath( paths[0]);
-      
-	    return srch;
-    }
-    catch ( PathNotFoundException ex) {
-      throw new FileNotFoundException();
-    }
-  }
+
+			// Initialize the search
+
+			srch.initSearch(path, attrib);
+			srch.setRelativePath(paths[0]);
+
+			return srch;
+		} catch (PathNotFoundException ex) {
+			throw new FileNotFoundException();
+		}
+	}
 
 	/**
 	 * Truncate a file to the specified size
 	 * 
-   * @param sess	 Server session
-   * @param tree   Tree connection
-   * @param file   Network file details
-   * @param siz    New file length
-   * @exception java.io.IOException The exception description.
+	 * @param sess
+	 *            Server session
+	 * @param tree
+	 *            Tree connection
+	 * @param file
+	 *            Network file details
+	 * @param siz
+	 *            New file length
+	 * @exception java.io.IOException
+	 *                The exception description.
 	 */
-	public void truncateFile(SrvSession sess, TreeConnection tree, NetworkFile file, long siz)
-		throws IOException {
+	public void truncateFile(SrvSession sess, TreeConnection tree, NetworkFile file, long siz) throws IOException {
 
-	  //	Truncate or extend the file
-	  
-	  file.truncateFile(siz);
-	  file.flushFile();
+		// Truncate or extend the file
+
+		file.truncateFile(siz);
+		file.flushFile();
 	}
 
-  /**
-   * Write a block of data to a file
-   * 
-   * @param sess	Session details
-   * @param tree	Tree connection
-   * @param file	Network file
-   * @param buf		Data to be written
-   * @param bufoff Offset of data within the buffer
-   * @param siz		Number of bytes to be written
-   * @param fileoff Offset within the file to start writing the data
-   */
-  public int writeFile(SrvSession sess, TreeConnection tree, NetworkFile file, byte[] buf, int bufoff, int siz, long fileoff)
-    throws java.io.IOException {
+	/**
+	 * Write a block of data to a file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param file
+	 *            Network file
+	 * @param buf
+	 *            Data to be written
+	 * @param bufoff
+	 *            Offset of data within the buffer
+	 * @param siz
+	 *            Number of bytes to be written
+	 * @param fileoff
+	 *            Offset within the file to start writing the data
+	 */
+	public int writeFile(SrvSession sess, TreeConnection tree, NetworkFile file, byte[] buf, int bufoff, int siz, long fileoff) throws java.io.IOException {
 
-    //	Check if the file is a directory
+		// Check if the file is a directory
 
-		if ( file.isDirectory())
+		if (file.isDirectory())
 			throw new AccessDeniedException();
 
-		//	Write the data to the file
-		      
-    file.writeFile(buf, siz, bufoff, fileoff);
+		// Write the data to the file
 
-    //  Return the actual write length
+		file.writeFile(buf, siz, bufoff, fileoff);
 
-    return siz;
-  }
+		// Return the actual write length
 
-  /**
-   * Parse and validate the parameter string and create a device context for this share
-   * 
-   * @param shareName String
-   * @param args ConfigElement
-   * @return DeviceContext
-   * @exception DeviceContextException
-   */
-  public DeviceContext createContext(String shareName, ConfigElement args)
-  	throws DeviceContextException {
-  	
-  	//	Get the device name argument
-  	
-  	ConfigElement path = args.getChild("LocalPath");
-  	DiskDeviceContext ctx = null;
-  	
-  	if ( path != null) {
-  		
-  		//	Validate the path and convert to an absolute path
-  		
-  		File rootDir = new File(path.getValue());
+		return siz;
+	}
 
-  		//	Create a device context using the absolute path
+	/**
+	 * Parse and validate the parameter string and create a device context for
+	 * this share
+	 * 
+	 * @param shareName
+	 *            String
+	 * @param args
+	 *            ConfigElement
+	 * @return DeviceContext
+	 * @exception DeviceContextException
+	 */
+	public DeviceContext createContext(String shareName, ConfigElement args) throws DeviceContextException {
+
+		// Get the device name argument
+
+		ConfigElement path = args.getChild("LocalPath");
+		DiskDeviceContext ctx = null;
+
+		if (path != null) {
+
+			// Validate the path and convert to an absolute path
+
+			File rootDir = new File(path.getValue());
+
+			// Create a device context using the absolute path
 
 			ctx = new DiskDeviceContext(rootDir.getAbsolutePath());
-			
-			//	Set filesystem flags
-			
-			ctx.setFilesystemAttributes( FileSystem.CasePreservedNames + FileSystem.UnicodeOnDisk);
-			
-			//	If the path is not valid then set the filesystem as unavailable
-			
-  		if ( rootDir.exists() == false || rootDir.isDirectory() == false || rootDir.list() == null) {
-  		  
-  		  //	Mark the filesystem as unavailable
 
-  		  ctx.setAvailable(false);
-  		}
-  		
-  		//	Return the context
-  		
-  		return ctx;
-  	}
-  		
-  	//	Required parameters not specified
-  	
-  	throw new DeviceContextException("LocalPath parameter not specified");
-  }
+			// Set filesystem flags
 
-  /**
-   * Connection opened to this disk device
-   * 
-   * @param sess					Server session
-   * @param tree         	Tree connection
-   */
-  public void treeOpened(SrvSession sess, TreeConnection tree) {
-  }
-  
-  /**
-   * Connection closed to this device
-   * 
-   * @param sess					Server session
-   * @param tree         	Tree connection
-   */
-  public void treeClosed(SrvSession sess, TreeConnection tree) {
-  }
-  
-  /**
-   * Return the global file creation date/time
-   * 
-   * @return long
-   */
-  public final static long getGlobalCreateDateTime() {
-  	return _globalCreateDate;
-  }
+			ctx.setFilesystemAttributes(FileSystem.CasePreservedNames + FileSystem.UnicodeOnDisk);
+
+			// If the path is not valid then set the filesystem as unavailable
+
+			if (rootDir.exists() == false || rootDir.isDirectory() == false || rootDir.list() == null) {
+
+				// Mark the filesystem as unavailable
+
+				ctx.setAvailable(false);
+			}
+
+			// Return the context
+
+			return ctx;
+		}
+
+		// Required parameters not specified
+
+		throw new DeviceContextException("LocalPath parameter not specified");
+	}
+
+	/**
+	 * Connection opened to this disk device
+	 * 
+	 * @param sess
+	 *            Server session
+	 * @param tree
+	 *            Tree connection
+	 */
+	public void treeOpened(SrvSession sess, TreeConnection tree) {
+	}
+
+	/**
+	 * Connection closed to this device
+	 * 
+	 * @param sess
+	 *            Server session
+	 * @param tree
+	 *            Tree connection
+	 */
+	public void treeClosed(SrvSession sess, TreeConnection tree) {
+	}
+
+	/**
+	 * Return the global file creation date/time
+	 * 
+	 * @return long
+	 */
+	public final static long getGlobalCreateDateTime() {
+		return _globalCreateDate;
+	}
 }

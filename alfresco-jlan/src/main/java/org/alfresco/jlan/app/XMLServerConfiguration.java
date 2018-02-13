@@ -34,6 +34,7 @@ import org.alfresco.jlan.ftp.InvalidPathException;
 import org.alfresco.jlan.oncrpc.nfs.NFSConfigSection;
 import org.alfresco.jlan.server.config.InvalidConfigurationException;
 import org.springframework.extensions.config.ConfigElement;
+import org.springframework.extensions.config.element.GenericConfigElement;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -823,7 +824,7 @@ public class XMLServerConfiguration extends CifsOnlyXMLServerConfiguration {
 			
 			// Use the null RPC authenticator as the default
 			
-			nfsConfig.setRpcAuthenticator( "org.alfresco.jlan.oncrpc.DefaultRpcAuthenticator", new ConfigElement( "", ""));
+			nfsConfig.setRpcAuthenticator( "org.alfresco.jlan.oncrpc.DefaultRpcAuthenticator", new GenericConfigElement( ""));
 		}
 
 		// Check if NFS debug is enabled

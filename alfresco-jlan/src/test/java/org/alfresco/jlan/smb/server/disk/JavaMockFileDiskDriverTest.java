@@ -1,141 +1,143 @@
 package org.alfresco.jlan.smb.server.disk;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+import org.alfresco.jlan.server.filesys.AccessMode;
+import org.alfresco.jlan.server.filesys.FileAction;
+import org.alfresco.jlan.server.filesys.FileAttribute;
 import org.alfresco.jlan.server.filesys.FileInfo;
+import org.alfresco.jlan.server.filesys.FileOpenParams;
+import org.alfresco.jlan.server.filesys.NetworkFile;
+import org.alfresco.jlan.server.filesys.PathNotFoundException;
+import org.alfresco.jlan.server.filesys.TreeConnection;
 import org.junit.Before;
 import org.junit.Test;
 
 public class JavaMockFileDiskDriverTest {
 
+	private static final String FOO_TXT = "foo.txt";
 	private JavaMockFileDiskDriver driver;
+	private MockSrvSession sess;
+	private TreeConnection tc = null;
+	private NetworkFile nf;
+	private FileOpenParams fop;
 
 	@Before
 	public void initJavaMockFileDiskDriver() {
 		driver = new JavaMockFileDiskDriver();
+		sess = new MockSrvSession(0, null, null, null);
+		nf = new MockNetworkFile(FOO_TXT);
+		fop = new FileOpenParams(FOO_TXT, FileAction.NTOpen, AccessMode.ReadWrite, FileAttribute.Normal, 0);
 	}
 
 	@Test
 	public void testBuildFileInformation() {
-		FileInfo fi = driver.buildFileInformation("foo", "bar");
+		FileInfo fi = driver.buildFileInformation(FOO_TXT);
 		assertNotNull(fi);
 		System.out.println(fi);
 	}
 
 	@Test
-	public void testCloseFile() {
-		driver.closeFile(sess, tree, file);
-		fail("Not yet implemented");
+	public void testGetFileInformation() throws IOException {
+		FileInfo info = driver.getFileInformation(sess, tc, FOO_TXT);
+		assertEquals(FOO_TXT, info.getFileName());
 	}
 
 	@Test
-	public void testCreateDirectory() {
-		fail("Not yet implemented");
+	public void testCreateFile() throws IOException {
+		driver.createFile(sess, tc, fop);
 	}
 
 	@Test
-	public void testCreateFile() {
-		fail("Not yet implemented");
+	public void testMapPathString() throws FileNotFoundException, PathNotFoundException {
+		String result = driver.mapPath("foo/bar", "test");
+		assertEquals("foo/bar/test", result);
 	}
 
 	@Test
-	public void testDeleteDirectory() {
-		fail("Not yet implemented");
+	public void testOpenFile() throws IOException {
+		driver.openFile(sess, tc, fop);
 	}
 
 	@Test
-	public void testDeleteFile() {
-		fail("Not yet implemented");
+	public void testReadFile() throws IOException {
+		byte[] buf = new byte[10];
+		int read = driver.readFile(sess, tc, nf, buf, 0, 10, 0);
+		byte[] expected = FOO_TXT.getBytes("UTF-8");
+
+		assertEquals(expected.length, read);
+	}
+
+	@Test
+	public void testCloseFile() throws IOException {
+		driver.closeFile(sess, tc, nf);
+	}
+
+	@Test
+	public void testCreateDirectory() throws IOException {
+		driver.createDirectory(sess, tc, null);
+	}
+
+	@Test
+	public void testDeleteDirectory() throws IOException {
+		driver.deleteDirectory(sess, tc, "foo");
+	}
+
+	@Test
+	public void testDeleteFile() throws IOException {
+		driver.deleteFile(sess, tc, FOO_TXT);
 	}
 
 	@Test
 	public void testFileExists() {
-		fail("Not yet implemented");
+		int exists = driver.fileExists(sess, tc, FOO_TXT);
+		assertTrue(exists != 0);
 	}
 
 	@Test
-	public void testFlushFile() {
-		fail("Not yet implemented");
+	public void testFlushFile() throws IOException {
+		driver.flushFile(sess, tc, nf);
 	}
 
 	@Test
-	public void testGetFileInformation() {
-		fail("Not yet implemented");
+	public void testIsReadOnly() throws IOException {
+		assertFalse(driver.isReadOnly(sess, null));
 	}
 
 	@Test
-	public void testIsReadOnly() {
-		fail("Not yet implemented");
+	public void testRenameFile() throws IOException {
+		driver.renameFile(sess, tc, "foo.old", "foo.new");
 	}
 
 	@Test
-	public void testMapPathString() {
-		fail("Not yet implemented");
+	public void testSeekFile() throws IOException {
+		driver.seekFile(sess, tc, nf, 0, 1);
 	}
 
 	@Test
-	public void testMapPathStringString() {
-		fail("Not yet implemented");
+	public void testSetFileInformation() throws IOException {
+		driver.setFileInformation(sess, tc, FOO_TXT, null);
 	}
 
 	@Test
-	public void testOpenFile() {
-		fail("Not yet implemented");
+	public void testStartSearch() throws FileNotFoundException {
+		driver.startSearch(sess, tc, "foo/bar", 0);
 	}
 
 	@Test
-	public void testReadFile() {
-		fail("Not yet implemented");
+	public void testTruncateFile() throws IOException {
+		driver.truncateFile(sess, tc, nf, 0);
 	}
 
 	@Test
-	public void testRenameFile() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testSeekFile() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testSetFileInformation() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testStartSearch() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testTruncateFile() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testWriteFile() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testCreateContext() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testTreeOpened() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testTreeClosed() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testGetGlobalCreateDateTime() {
-		fail("Not yet implemented");
+	public void testWriteFile() throws IOException {
+		driver.writeFile(sess, tc, nf, new byte[0], 0, 0, 0);
 	}
 
 }
