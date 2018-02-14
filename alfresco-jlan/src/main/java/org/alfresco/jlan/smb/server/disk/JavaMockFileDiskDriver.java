@@ -22,6 +22,9 @@ package org.alfresco.jlan.smb.server.disk;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,7 +35,6 @@ import org.alfresco.jlan.server.filesys.DiskDeviceContext;
 import org.alfresco.jlan.server.filesys.DiskInterface;
 import org.alfresco.jlan.server.filesys.FileAttribute;
 import org.alfresco.jlan.server.filesys.FileInfo;
-import org.alfresco.jlan.server.filesys.FileName;
 import org.alfresco.jlan.server.filesys.FileOpenParams;
 import org.alfresco.jlan.server.filesys.FileStatus;
 import org.alfresco.jlan.server.filesys.FileSystem;
@@ -41,6 +43,8 @@ import org.alfresco.jlan.server.filesys.PathNotFoundException;
 import org.alfresco.jlan.server.filesys.SearchContext;
 import org.alfresco.jlan.server.filesys.TreeConnection;
 import org.alfresco.jlan.server.filesys.pseudo.MemoryNetworkFile;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.extensions.config.ConfigElement;
 
 /**
@@ -71,16 +75,15 @@ import org.springframework.extensions.config.ConfigElement;
  */
 
 public class JavaMockFileDiskDriver implements DiskInterface {
-	private static final char DOS_SEPARATOR = '\\';
+	private static final String UTF_8 = "UTF-8";
 
-	Logger logger = Logger.getLogger(JavaMockFileDiskDriver.class.getName());
+	private static final Logger logger = Logger.getLogger(JavaMockFileDiskDriver.class.getName());
 
 	// SMB date used as the creation date/time for all files
 	protected static long _globalCreateDate = System.currentTimeMillis();
 
 	public JavaMockFileDiskDriver() {
 		super();
-		System.out.println("Mock init.");
 		logger.finest("Driver loaded.");
 	}
 
@@ -255,17 +258,46 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	 */
 	public NetworkFile openFile(SrvSession sess, TreeConnection tree, FileOpenParams params) throws java.io.IOException {
 
-		// Requested resource is considered always a file, never a directory.		
-		logger.log(Level.FINEST, "Open file ''{0}''", params.getPath());
-
-		//File file = new File(params.getPath());
-		//NetworkFile netFile = new JavaNetworkFile(file, params.getPath());
-		
+		// Requested resource is considered always a file, never a directory.
 		String fileName = params.getPath();
-		NetworkFile netFile = new MemoryNetworkFile(fileName, fileName.getBytes("UTF-8"),buildFileInformation(fileName));
-		netFile.setFullName(params.getPath());
+		logger.log(Level.FINEST, "Open file ''{0}''", fileName);
+
+		byte[] data = "Default contents".getBytes(UTF_8);
+		String fileExtension = FilenameUtils.getExtension(fileName);
+
+		if (tree != null) {
+			DeviceContext ctx = tree.getContext();
+			ConfigElement templateDirConfig = ctx.getConfigurationParameters().getChild("templateDir");
+			
+			if (templateDirConfig != null) {
+				logger.log(Level.FINE, "Template Dir: ''{0}''", templateDirConfig.getValue());
+
+				// TODO Optimize this to be done at start-up time.
+				File dir = new File(templateDirConfig.getValue());
+				Collection<File> templates = FileUtils.listFiles(dir, new String[] { fileExtension }, true);
+
+				if (templates.size() > 0) {
+					data = FileUtils.readFileToByteArray(getRandomFile(templates));
+				} else {
+					logger.log(Level.WARNING, "No templates of type ''{0}'' found. Returning default contents.", fileExtension);
+				}
+
+			} else {
+				logger.warning("Template dir not defined.");
+			}
+		}
+
+		NetworkFile netFile = new MemoryNetworkFile(fileName, data, buildFileInformation(fileName));
+		netFile.setFullName(fileName);
 
 		return netFile;
+	}
+
+	private File getRandomFile(Collection<? extends File> from) {
+		int size = from.size();
+		int idx = new Random().nextInt(size);
+		
+		return from.toArray(new File[size])[idx];
 	}
 
 	/**
@@ -290,18 +322,38 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	 */
 	public int readFile(SrvSession sess, TreeConnection tree, NetworkFile file, byte[] buf, int bufPos, int siz, long filePos) throws java.io.IOException {
 
-		// int rdlen = file.readFile(buf, siz, bufPos, filePos);
+		int rdlen = file.readFile(buf, siz, bufPos, filePos);
 
-		// Use file name as it's contents!
-		byte[] contents = file.getName().getBytes("UTF-8");
-
-		if (filePos >= contents.length)
-			return 0;
-
-		int rdlen = Math.min(siz, contents.length);
-		System.arraycopy(contents, (int) filePos, buf, bufPos, rdlen);
+		if (rdlen == -1)
+			rdlen = 0;
 
 		return rdlen;
+	}
+
+	/**
+	 * Write a block of data to a file
+	 * 
+	 * @param sess
+	 *            Session details
+	 * @param tree
+	 *            Tree connection
+	 * @param file
+	 *            Network file
+	 * @param buf
+	 *            Data to be written
+	 * @param bufoff
+	 *            Offset of data within the buffer
+	 * @param siz
+	 *            Number of bytes to be written
+	 * @param fileoff
+	 *            Offset within the file to start writing the data
+	 */
+	public int writeFile(SrvSession sess, TreeConnection tree, NetworkFile file, byte[] buf, int bufoff, int siz, long fileoff) throws java.io.IOException {
+
+		// Do nothing
+		logger.log(Level.FINEST, "Write to file ''{0}'' {1} bytes", new Object[] { file.getFullName(), siz });
+
+		return siz;
 	}
 
 	/**
@@ -402,32 +454,6 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	}
 
 	/**
-	 * Write a block of data to a file
-	 * 
-	 * @param sess
-	 *            Session details
-	 * @param tree
-	 *            Tree connection
-	 * @param file
-	 *            Network file
-	 * @param buf
-	 *            Data to be written
-	 * @param bufoff
-	 *            Offset of data within the buffer
-	 * @param siz
-	 *            Number of bytes to be written
-	 * @param fileoff
-	 *            Offset within the file to start writing the data
-	 */
-	public int writeFile(SrvSession sess, TreeConnection tree, NetworkFile file, byte[] buf, int bufoff, int siz, long fileoff) throws java.io.IOException {
-
-		// Do nothing
-		logger.log(Level.FINEST, "Write to file ''{0}'' {1} bytes", new Object[] { file.getFullName(), siz });
-
-		return siz;
-	}
-
-	/**
 	 * Parse and validate the parameter string and create a device context for
 	 * this share
 	 * 
@@ -500,16 +526,16 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	 *            String
 	 * @return FileInfo
 	 */
-	FileInfo buildFileInformation(String path) {
+	static FileInfo buildFileInformation(String path) {
 		long fdate = System.currentTimeMillis();
 		FileInfo finfo;
 
 		logger.log(Level.FINE, "Building file information of ''{0}''", path);
 
-		String[] pathStr = FileName.splitPath(path, DOS_SEPARATOR);
-
-		if (pathStr[1] != null) {
-			String fileName = pathStr[1];
+		// Since this mock implementation does use underlying files system, we
+		// use presence of file extension as qualification criterion.
+		if (PathClassifier.isFilePath(path)) {
+			String fileName = PathClassifier.getFileName(path);
 			String contents = fileName;
 
 			long flen = contents.length();
@@ -520,8 +546,9 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 			finfo.setAllocationSize(alloc);
 			finfo.setFileId(fileName.hashCode());
 		} else {
-			finfo = new FileInfo(path, 0, FileAttribute.Directory);
-			finfo.setFileId(path.hashCode());
+			String dirName = PathClassifier.getDirPath(path);
+			finfo = new FileInfo(dirName, 0, FileAttribute.Directory);
+			finfo.setFileId(dirName.hashCode());
 		}
 
 		finfo.setModifyDateTime(fdate);

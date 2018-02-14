@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<artifactId>mock-jlan</artifactId>
 	<name>Mock JLan</name>
-	<version>1.0.1</version>
+	<version>1.0.2</version>
 
 	<parent>
 		<groupId>org.alfresco</groupId>
@@ -12,6 +12,11 @@
 	</parent>
 
 	<dependencies>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>[2.5,)</version>
+		</dependency>
 		<dependency>
 			<groupId>com.tanukisoftware</groupId>
 			<artifactId>wrapper</artifactId>

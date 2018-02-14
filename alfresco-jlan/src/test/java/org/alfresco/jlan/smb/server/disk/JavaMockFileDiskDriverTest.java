@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 import org.alfresco.jlan.server.filesys.AccessMode;
 import org.alfresco.jlan.server.filesys.FileAction;
@@ -16,11 +17,13 @@ import org.alfresco.jlan.server.filesys.FileOpenParams;
 import org.alfresco.jlan.server.filesys.NetworkFile;
 import org.alfresco.jlan.server.filesys.PathNotFoundException;
 import org.alfresco.jlan.server.filesys.TreeConnection;
+import org.alfresco.jlan.server.filesys.pseudo.MemoryNetworkFile;
 import org.junit.Before;
 import org.junit.Test;
 
 public class JavaMockFileDiskDriverTest {
 
+	private static final String UTF_8 = "UTF-8";
 	private static final String FOO_TXT = "foo.txt";
 	private JavaMockFileDiskDriver driver;
 	private MockSrvSession sess;
@@ -29,10 +32,12 @@ public class JavaMockFileDiskDriverTest {
 	private FileOpenParams fop;
 
 	@Before
-	public void initJavaMockFileDiskDriver() {
+	public void initJavaMockFileDiskDriver() throws UnsupportedEncodingException {
 		driver = new JavaMockFileDiskDriver();
 		sess = new MockSrvSession(0, null, null, null);
 		nf = new MockNetworkFile(FOO_TXT);
+		FileInfo finfo = JavaMockFileDiskDriver.buildFileInformation(FOO_TXT);
+		nf = new MemoryNetworkFile(FOO_TXT, FOO_TXT.getBytes(UTF_8), finfo);
 		fop = new FileOpenParams(FOO_TXT, FileAction.NTOpen, AccessMode.ReadWrite, FileAttribute.Normal, 0);
 	}
 
@@ -69,7 +74,7 @@ public class JavaMockFileDiskDriverTest {
 	public void testReadFile() throws IOException {
 		byte[] buf = new byte[10];
 		int read = driver.readFile(sess, tc, nf, buf, 0, 10, 0);
-		byte[] expected = FOO_TXT.getBytes("UTF-8");
+		byte[] expected = FOO_TXT.getBytes(UTF_8);
 
 		assertEquals(expected.length, read);
 	}
