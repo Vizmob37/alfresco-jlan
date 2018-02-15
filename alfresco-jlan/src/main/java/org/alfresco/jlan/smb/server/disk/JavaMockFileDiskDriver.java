@@ -22,7 +22,7 @@ package org.alfresco.jlan.smb.server.disk;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
+import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 import java.util.Random;
 import java.util.logging.Level;
@@ -82,8 +82,11 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	// SMB date used as the creation date/time for all files
 	protected static long _globalCreateDate = System.currentTimeMillis();
 
-	public JavaMockFileDiskDriver() {
+	private final byte[] defaultContents;
+
+	public JavaMockFileDiskDriver() throws UnsupportedEncodingException {
 		super();
+		this.defaultContents = "Default contents".getBytes(UTF_8);
 		logger.finest("Driver loaded.");
 	}
 
@@ -222,9 +225,12 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	public FileInfo getFileInformation(SrvSession sess, TreeConnection tree, String name) throws java.io.IOException {
 
 		logger.log(Level.FINE, "Get file information of ''{0}''", name);
-		FileInfo info = buildFileInformation(name);
-
-		return info;
+		
+		if(name.startsWith("\\.smb")){
+			return null;
+		}
+		
+		return buildFileInformation(name);
 	}
 
 	/**
@@ -262,13 +268,22 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 		String fileName = params.getPath();
 		logger.log(Level.FINEST, "Open file ''{0}''", fileName);
 
-		byte[] data = "Default contents".getBytes(UTF_8);
-		String fileExtension = FilenameUtils.getExtension(fileName);
+		byte[] data = getFileContents(tree, fileName);
+
+		NetworkFile netFile = new MemoryNetworkFile(fileName, data, buildFileInformation(fileName));
+		netFile.setFullName(fileName);
+
+		return netFile;
+	}
+
+	private byte[] getFileContents(TreeConnection tree, String fileName) throws UnsupportedEncodingException, IOException {
+		byte[] data = this.defaultContents;
+		String fileExtension = FilenameUtils.getExtension(fileName).toLowerCase();
 
 		if (tree != null) {
 			DeviceContext ctx = tree.getContext();
 			ConfigElement templateDirConfig = ctx.getConfigurationParameters().getChild("templateDir");
-			
+
 			if (templateDirConfig != null) {
 				logger.log(Level.FINE, "Template Dir: ''{0}''", templateDirConfig.getValue());
 
@@ -286,17 +301,14 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 				logger.warning("Template dir not defined.");
 			}
 		}
-
-		NetworkFile netFile = new MemoryNetworkFile(fileName, data, buildFileInformation(fileName));
-		netFile.setFullName(fileName);
-
-		return netFile;
+		
+		return data;
 	}
 
 	private File getRandomFile(Collection<? extends File> from) {
 		int size = from.size();
 		int idx = new Random().nextInt(size);
-		
+
 		return from.toArray(new File[size])[idx];
 	}
 
@@ -431,8 +443,13 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	 * @exception FileNotFoundException
 	 */
 	public SearchContext startSearch(SrvSession sess, TreeConnection tree, String searchPath, int attrib) throws java.io.FileNotFoundException {
+		logger.log(Level.FINEST, "Start search of path ''{0}''", searchPath);
 
-		return new JavaMockFileSearchContext();
+		if (searchPath.endsWith("*")) {
+			return null;
+		}
+
+		return new JavaMockFileSearchContext(buildFileInformation(searchPath));
 	}
 
 	/**

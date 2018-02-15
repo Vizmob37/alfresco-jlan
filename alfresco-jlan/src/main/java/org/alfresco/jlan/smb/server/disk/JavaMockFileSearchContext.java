@@ -5,8 +5,12 @@ import org.alfresco.jlan.server.filesys.SearchContext;
 
 public class JavaMockFileSearchContext extends SearchContext {
 
-	public JavaMockFileSearchContext() {
+	int counter = 0;
+	private FileInfo fileInfo;
+
+	public JavaMockFileSearchContext(FileInfo fileInfo) {
 		super();
+		this.fileInfo = fileInfo;
 	}
 
 	@Override
@@ -16,17 +20,26 @@ public class JavaMockFileSearchContext extends SearchContext {
 
 	@Override
 	public boolean hasMoreFiles() {
-		return false;
+		return counter++ > 0 ? false : true;
 	}
 
 	@Override
 	public boolean nextFileInfo(FileInfo info) {
-		return false;
+		if (counter++ > 0) {
+			return false;
+		} else {
+			info.copyFrom(fileInfo);
+			return true;
+		}
 	}
 
 	@Override
 	public String nextFileName() {
-		return null;
+		if (counter++ > 0) {
+			return null;
+		} else {
+			return fileInfo.getFileName();
+		}
 	}
 
 	@Override
