@@ -69,6 +69,7 @@
 				<class>org.alfresco.jlan.smb.server.disk.JavaMockFileDiskDriver</class>
 				<LocalPath>.</LocalPath>
 				<templateDir>./templates</templateDir>
+				<cacheTemplates>true</cacheTemplates>
 			</driver>
 		</diskshare>
 	</shares>

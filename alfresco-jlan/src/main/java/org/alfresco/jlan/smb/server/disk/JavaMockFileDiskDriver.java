@@ -24,7 +24,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -81,13 +83,15 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 
 	// SMB date used as the creation date/time for all files
 	protected static long _globalCreateDate = System.currentTimeMillis();
-
 	private final byte[] defaultContents;
+
+	private final Map<String, TemplateCollector> tcs;
 
 	public JavaMockFileDiskDriver() throws UnsupportedEncodingException {
 		super();
 		this.defaultContents = "Default contents".getBytes(UTF_8);
 		logger.finest("Driver loaded.");
+		tcs = new ConcurrentHashMap<>();
 	}
 
 	/**
@@ -225,11 +229,11 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 	public FileInfo getFileInformation(SrvSession sess, TreeConnection tree, String name) throws java.io.IOException {
 
 		logger.log(Level.FINE, "Get file information of ''{0}''", name);
-		
-		if(name.startsWith("\\.smb")){
+
+		if (name.startsWith("\\.smb")) {
 			return null;
 		}
-		
+
 		return buildFileInformation(name);
 	}
 
@@ -282,34 +286,24 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 
 		if (tree != null) {
 			DeviceContext ctx = tree.getContext();
-			ConfigElement templateDirConfig = ctx.getConfigurationParameters().getChild("templateDir");
 
-			if (templateDirConfig != null) {
-				logger.log(Level.FINE, "Template Dir: ''{0}''", templateDirConfig.getValue());
+			TemplateCollector templateCollector = tcs.get(ctx.getShareName());
 
-				// TODO Optimize this to be done at start-up time.
-				File dir = new File(templateDirConfig.getValue());
-				Collection<File> templates = FileUtils.listFiles(dir, new String[] { fileExtension }, true);
+			if (templateCollector != null) {
+				File file = templateCollector.getRandomTemplate(fileExtension);
 
-				if (templates.size() > 0) {
-					data = FileUtils.readFileToByteArray(getRandomFile(templates));
+				if (file != null) {
+					data = FileUtils.readFileToByteArray(file);
 				} else {
 					logger.log(Level.WARNING, "No templates of type ''{0}'' found. Returning default contents.", fileExtension);
 				}
-
 			} else {
-				logger.warning("Template dir not defined.");
+				logger.warning("TemplateCollector not defined.");
 			}
+
 		}
-		
+
 		return data;
-	}
-
-	private File getRandomFile(Collection<? extends File> from) {
-		int size = from.size();
-		int idx = new Random().nextInt(size);
-
-		return from.toArray(new File[size])[idx];
 	}
 
 	/**
@@ -494,10 +488,20 @@ public class JavaMockFileDiskDriver implements DiskInterface {
 			ctx = new DiskDeviceContext(rootDir.getAbsolutePath());
 			ctx.setFilesystemAttributes(FileSystem.CasePreservedNames + FileSystem.UnicodeOnDisk);
 
+			String templateDir = args.getChildValue("templateDir");
+			String cacheTemplates = args.getChildValue("cacheTemplates");
+
+			if (templateDir != null) {
+				boolean cached = Boolean.valueOf(cacheTemplates);
+				logger.log(Level.FINEST, "Creating {0} template collector for share {1}.", new String[] { (cached ? "cached" : "non-cached"), shareName });
+				TemplateCollector tc = new TemplateCollector(new File(templateDir), null, cached);
+				tcs.put(shareName, tc);
+			} else {
+				logger.warning("Template dir not defined.");
+			}
+
 			return ctx;
 		}
-
-		// Required parameters not specified
 
 		throw new DeviceContextException("LocalPath parameter not specified");
 	}
